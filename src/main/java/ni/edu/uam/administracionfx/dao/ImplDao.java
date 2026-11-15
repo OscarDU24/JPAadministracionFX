@@ -5,38 +5,43 @@ import jakarta.persistence.TypedQuery;
 
 import java.util.List;
 
-public class ImplDao implements IDao{
+/**
+ * DAO genérico con JPA. Las operaciones que fallan hacen rollback y
+ * vuelven a lanzar la excepción para que la capa de UI pueda avisar al usuario.
+ */
+public class ImplDao implements IDao {
 
     @Override
     public <T> List<T> getAll(String namedQuery, Class<T> clazz) {
+        return getByQuery(namedQuery, clazz);
+    }
+
+    @Override
+    public <T> List<T> getByQuery(String namedQuery, Class<T> clazz, Object... params) {
         EntityManager em = EntityManagerAdmin.getEntityManager();
         try {
-            TypedQuery<T> query = em.createNamedQuery(namedQuery,clazz);
+            TypedQuery<T> query = em.createNamedQuery(namedQuery, clazz);
+            for (int i = 0; i < params.length; i++) {
+                query.setParameter(i + 1, params[i]);
+            }
             return query.getResultList();
-        }
-        catch(Exception ex){
-            ex.printStackTrace();
-        }
-        finally {
+        } finally {
             em.close();
         }
-        return List.of();
     }
 
     @Override
     public <T> void insert(T entity) {
         EntityManager em = EntityManagerAdmin.getEntityManager();
-        try{
+        try {
             em.getTransaction().begin();
             em.persist(entity);
             em.flush();
             em.getTransaction().commit();
-        }
-        catch (Exception e){
-            e.printStackTrace();
-            em.getTransaction().rollback();
-        }
-        finally{
+        } catch (RuntimeException e) {
+            rollback(em);
+            throw e;
+        } finally {
             em.close();
         }
     }
@@ -50,15 +55,12 @@ public class ImplDao implements IDao{
             em.flush();
             em.getTransaction().commit();
             return ent;
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-            em.getTransaction().rollback();
-        }
-        finally {
+        } catch (RuntimeException e) {
+            rollback(em);
+            throw e;
+        } finally {
             em.close();
         }
-        return null;
     }
 
     @Override
@@ -69,29 +71,27 @@ public class ImplDao implements IDao{
             em.remove(em.merge(entity));
             em.flush();
             em.getTransaction().commit();
-        }
-        catch (Exception e){
-            e.printStackTrace();
-            em.getTransaction().rollback();
-        }
-        finally{
+        } catch (RuntimeException e) {
+            rollback(em);
+            throw e;
+        } finally {
             em.close();
         }
     }
 
     @Override
-    public <T> T findById(Class<T> clazz, String id) {
+    public <T> T findById(Class<T> clazz, Object id) {
         EntityManager em = EntityManagerAdmin.getEntityManager();
         try {
-            T entity = em.find(clazz,id);
-            return entity;
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-        }
-        finally {
+            return em.find(clazz, id);
+        } finally {
             em.close();
         }
-        return null;
+    }
+
+    private void rollback(EntityManager em) {
+        if (em.getTransaction().isActive()) {
+            em.getTransaction().rollback();
+        }
     }
 }

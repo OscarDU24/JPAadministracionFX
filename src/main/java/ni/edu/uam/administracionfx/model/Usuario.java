@@ -9,12 +9,16 @@ import java.util.UUID;
 @Table(name = "usuario")
 @NamedQueries({
         @NamedQuery(
-              name="Usuario.findAll",
-              query="SELECT e FROM Usuario e"
+                name="Usuario.findAll",
+                query="SELECT e FROM Usuario e"
         ),
         @NamedQuery(
-              name="Usuario.findById",
-              query = "SELECT e FROM Usuario e WHERE e.id = ?1"
+                name="Usuario.findById",
+                query = "SELECT e FROM Usuario e WHERE e.id = ?1"
+        ),
+        @NamedQuery(
+                name="Usuario.findByUsuario",
+                query = "SELECT e FROM Usuario e WHERE e.usuario = ?1"
         )
 })
 public class Usuario {
@@ -119,6 +123,11 @@ public class Usuario {
         this.rutaFoto = rutaFoto;
     }
 
+    public String getNombreCompleto() {
+        return java.util.stream.Stream.of(primerNombre, segundoNombre, primerApellido, segundoApellido)
+                .filter(s -> s != null && !s.isBlank())
+                .collect(java.util.stream.Collectors.joining(" "));
+    }
 
     @Override
     public String toString() {
